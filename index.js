@@ -28,9 +28,7 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 });
-    console.log(
-      'Pinged your deployment. You successfully connected to MongoDB!'
-    );
+    console.log('Pinged your deployment. You successfully connected to MongoDB!');
   } finally {
     // Ensures that the client will close when you finish/error
     await client.close();
@@ -51,13 +49,25 @@ app.get('/users', async (req, res) => {
 });
 
 app.post('/user', async (req, res) => {
-  await client.connect();
-  const user = req.body;
-  console.log(user);
-  const result = await userCollection.insertOne(user);
-  const response = JSON.stringify(result);
-  res.send(response);
-  client.close();
-})
+  try {
+    await client.connect();
+    const user = req.body;
+    const cursor = userCollection.find({ email: user.email });
+    const result = await cursor.toArray();
+
+    if (result.length) {
+      console.log('User already exists!');
+      return;
+    } else {
+      const cursor = await userCollection.insertOne(user);
+      console.log('New user added!');
+      res.send(cursor);
+    }
+  } catch{
+    console.dir;
+  } finally {
+    client.close();
+  }
+});
 
 app.listen(port);
