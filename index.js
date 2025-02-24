@@ -53,7 +53,7 @@ app.get('/reviews', async (req, res) => {
     const allReviews = await reviewCollection.find().toArray();
 
     // Regviews with details
-    const reviewsWithDetails = await Promise.all(
+    Promise.all(
       allReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
         const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
@@ -68,7 +68,8 @@ app.get('/reviews', async (req, res) => {
     ).then((result) => {
       res.send(result);
     });
-    // res.send(allReviews); // Testing purpose
+  } catch {
+    (error) => res.send(error);
   } finally {
     client.close();
   }
@@ -80,30 +81,15 @@ app.get('/review/:id', async (req, res) => {
     // Connect to MongoDB
     await client.connect();
 
-    // Testing purpose
-    console.log(req.params.id);
+    const review_id = req.params.id;
 
+    // Get desired review:
+    const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) });
+    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)});
+    const user = await userCollection.findOne({_id: ObjectId.createFromHexString(review.user)});
+    const detailedReview = {review, game, user};
 
-    // // Get all reviews:
-    // const allReviews = await reviewCollection.find().toArray();
-
-    // // Regviews with details
-    // const reviewsWithDetails = await Promise.all(
-    //   allReviews.map(async (review) => {
-    //     const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
-    //     const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
-    //     return {
-    //       id: review._id,
-    //       review: review.review,
-    //       rating: review.rating,
-    //       game: gameInfo,
-    //       user: userInfo,
-    //     };
-    //   })
-    // ).then((result) => {
-    //   res.send(result);
-    // });
-    // res.send(allReviews); // Testing purpose
+    res.send(detailedReview);
   } finally {
     client.close();
   }
