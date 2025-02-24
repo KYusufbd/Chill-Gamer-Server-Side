@@ -53,7 +53,7 @@ app.get('/reviews', async (req, res) => {
     const allReviews = await reviewCollection.find().toArray();
 
     // Regviews with details
-    Promise.all(
+    const reviewsWithDetails = await Promise.all(
       allReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
         const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
@@ -65,9 +65,8 @@ app.get('/reviews', async (req, res) => {
           user: userInfo,
         };
       })
-    ).then((result) => {
-      res.send(result);
-    });
+    );
+    res.send(reviewsWithDetails);
   } catch {
     (error) => res.send(error);
   } finally {
@@ -95,7 +94,7 @@ app.get('/review/:id', async (req, res) => {
   }
 });
 
-// Fint all users
+// Find all users
 app.get('/users', async (req, res) => {
   await client.connect();
   const cursor = userCollection.find();
