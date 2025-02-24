@@ -9,7 +9,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors());
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://yfaka001:${password}@cluster0.tiftb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -21,6 +21,8 @@ const client = new MongoClient(uri, {
   },
 });
 const userCollection = client.db('chill_gamer').collection('users');
+const reviewCollection = client.db('chill_gamer').collection('reviews');
+const gameCollection = client.db('chill_gamer').collection('games');
 
 async function run() {
   try {
@@ -36,10 +38,78 @@ async function run() {
 }
 run().catch(console.dir);
 
+// Testin purpose only:
 app.get('/', (req, res) => {
   res.send(`Chill Gamer server is running!! on port: ${port}`);
 });
 
+// Get all reviews:
+app.get('/reviews', async (req, res) => {
+  try {
+    // Connect to MongoDB
+    await client.connect();
+
+    // Get all reviews:
+    const allReviews = await reviewCollection.find().toArray();
+
+    // Regviews with details
+    const reviewsWithDetails = await Promise.all(
+      allReviews.map(async (review) => {
+        const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
+        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+        return {
+          id: review._id,
+          review: review.review,
+          rating: review.rating,
+          game: gameInfo,
+          user: userInfo,
+        };
+      })
+    ).then((result) => {
+      res.send(result);
+    });
+    // res.send(allReviews); // Testing purpose
+  } finally {
+    client.close();
+  }
+});
+
+// Get a single detaild review:
+app.get('/review/:id', async (req, res) => {
+  try {
+    // Connect to MongoDB
+    await client.connect();
+
+    // Testing purpose
+    console.log(req.params.id);
+
+
+    // // Get all reviews:
+    // const allReviews = await reviewCollection.find().toArray();
+
+    // // Regviews with details
+    // const reviewsWithDetails = await Promise.all(
+    //   allReviews.map(async (review) => {
+    //     const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
+    //     const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+    //     return {
+    //       id: review._id,
+    //       review: review.review,
+    //       rating: review.rating,
+    //       game: gameInfo,
+    //       user: userInfo,
+    //     };
+    //   })
+    // ).then((result) => {
+    //   res.send(result);
+    // });
+    // res.send(allReviews); // Testing purpose
+  } finally {
+    client.close();
+  }
+});
+
+// Fint all users
 app.get('/users', async (req, res) => {
   await client.connect();
   const cursor = userCollection.find();
@@ -48,6 +118,7 @@ app.get('/users', async (req, res) => {
   client.close();
 });
 
+// Add new user
 app.post('/user', async (req, res) => {
   try {
     await client.connect();
@@ -63,7 +134,7 @@ app.post('/user', async (req, res) => {
       console.log('New user added!');
       res.send(cursor);
     }
-  } catch{
+  } catch {
     console.dir;
   } finally {
     client.close();
