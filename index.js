@@ -23,7 +23,9 @@ const client = new MongoClient(uri, {
 const userCollection = client.db('chill_gamer').collection('users');
 const reviewCollection = client.db('chill_gamer').collection('reviews');
 const gameCollection = client.db('chill_gamer').collection('games');
+const watchlistCollection = client.db('chill_gamer').collection('watchlist');
 
+// Testing database when server runs first time:
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -33,12 +35,12 @@ async function run() {
     console.log('Pinged your deployment. You successfully connected to MongoDB!');
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
 
-// Testin purpose only:
+// Testing purpose only:
 app.get('/', (req, res) => {
   res.send(`Chill Gamer server is running!! on port: ${port}`);
 });
@@ -69,9 +71,7 @@ app.get('/reviews', async (req, res) => {
     res.send(reviewsWithDetails);
   } catch {
     (error) => res.send(error);
-  } finally {
-    client.close();
-  }
+  };
 });
 
 // Get a single detaild review:
@@ -83,46 +83,41 @@ app.get('/review/:id', async (req, res) => {
     const review_id = req.params.id;
 
     // Get desired review:
-    const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) });
-    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)});
-    const user = await userCollection.findOne({_id: ObjectId.createFromHexString(review.user)});
+    const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id)});
+    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)}, {projection: {_id: 0}});
+    const user = await userCollection.findOne({_id: ObjectId.createFromHexString(review.user)}, {projection: {name: 1, email: 1, _id: 0}});
     const detailedReview = {review, game, user};
 
-    res.send(detailedReview);
-  } finally {
-    client.close();
+    res.json(detailedReview);
+  } catch {
+    error => res.send(error);
   }
 });
 
-// Find all users
-app.get('/users', async (req, res) => {
-  await client.connect();
-  const cursor = userCollection.find();
-  const result = await cursor.toArray();
-  res.send(result);
-  client.close();
-});
+// Add to watchlist
+app.post('/watchlist', (req, res) => {
+  res.send('Server is being updated!');
+})
 
 // Add new user
 app.post('/user', async (req, res) => {
   try {
     await client.connect();
     const user = req.body;
-    const cursor = userCollection.find({ email: user.email });
-    const result = await cursor.toArray();
-
-    if (result.length) {
+    const cursor = await userCollection.findOne({email: user.email });
+    
+     if (cursor) {
       console.log('User already exists!');
-      return;
+      res.send('User registered previously!');
     } else {
-      const cursor = await userCollection.insertOne(user);
+      const data = await userCollection.insertOne(user);
       console.log('New user added!');
-      res.send(cursor);
+      res.send(data);
     }
   } catch {
     console.dir;
   } finally {
-    client.close();
+    // client.close();
   }
 });
 
