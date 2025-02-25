@@ -84,7 +84,7 @@ app.get('/review/:id', async (req, res) => {
 
     // Get desired review:
     const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id)});
-    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)}, {projection: {_id: 0}});
+    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)});
     const user = await userCollection.findOne({_id: ObjectId.createFromHexString(review.user)}, {projection: {name: 1, email: 1, _id: 0}});
     const detailedReview = {review, game, user};
 
@@ -95,8 +95,18 @@ app.get('/review/:id', async (req, res) => {
 });
 
 // Add to watchlist
-app.post('/watchlist', (req, res) => {
-  res.send('Server is being updated!');
+app.post('/watchlist', async (req, res) => {
+ try {await client.connect();
+  const loggedIn = req.body.loggedIn;
+  const email = req.body.email;
+  const game = req.body.game;
+  if (loggedIn) {
+    const cursor = await userCollection.updateOne({email: email}, {$push: {watchlist: game}}, {upsert: true})
+    res.send(cursor);}
+    console.log('Added to watchlist successfully');
+  } catch {
+    error => res.send(error);
+  }
 })
 
 // Add new user
