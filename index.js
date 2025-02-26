@@ -71,7 +71,7 @@ app.get('/reviews', async (req, res) => {
     res.send(reviewsWithDetails);
   } catch {
     (error) => res.send(error);
-  };
+  }
 });
 
 // Get a single detaild review:
@@ -83,40 +83,43 @@ app.get('/review/:id', async (req, res) => {
     const review_id = req.params.id;
 
     // Get desired review:
-    const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id)});
-    const game = await gameCollection.findOne({_id: ObjectId.createFromHexString(review.game)});
-    const user = await userCollection.findOne({_id: ObjectId.createFromHexString(review.user)}, {projection: {name: 1, email: 1, _id: 0}});
-    const detailedReview = {review, game, user};
+    const review = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) });
+    const game = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) });
+    const user = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { name: 1, email: 1, _id: 0 } });
+    const detailedReview = { review, game, user };
 
     res.json(detailedReview);
   } catch {
-    error => res.send(error);
+    (error) => res.send(error);
   }
 });
 
 // Add to watchlist
 app.post('/watchlist', async (req, res) => {
- try {await client.connect();
-  const loggedIn = req.body.loggedIn;
-  const email = req.body.email;
-  const game = req.body.game;
-  if (loggedIn) {
-    const cursor = await userCollection.updateOne({email: email}, {$push: {watchlist: game}}, {upsert: true})
-    res.send(cursor);}
-    console.log('Added to watchlist successfully');
+  try {
+    await client.connect();
+    const loggedIn = req.body.loggedIn;
+    const email = req.body.email;
+    const game = req.body.game;
+    const myWatchlist = await watchlistCollection.findOne({email: email})
+    if (loggedIn && !myWatchlist?.watchlist?.includes(game)) {
+      const cursor = await watchlistCollection.updateOne({ email: email }, { $push: { watchlist: game } }, { upsert: true });
+      res.send(cursor);
+      console.log('Added to watchlist successfully');
+    }
   } catch {
-    error => res.send(error);
+    (error) => res.send(error);
   }
-})
+});
 
 // Add new user
 app.post('/user', async (req, res) => {
   try {
     await client.connect();
     const user = req.body;
-    const cursor = await userCollection.findOne({email: user.email });
-    
-     if (cursor) {
+    const cursor = await userCollection.findOne({ email: user.email });
+
+    if (cursor) {
       console.log('User already exists!');
       res.send('User registered previously!');
     } else {
