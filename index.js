@@ -2,6 +2,12 @@ const express = require('express');
 const app = express();
 require('dotenv').config();
 const cors = require('cors');
+const { initializeApp, applicationDefault } = require('firebase-admin/app');
+
+const fbApp = initializeApp({
+  credential: applicationDefault(),
+  projectId: 'chill-gamer-6e64e',
+});
 
 const password = process.env.PASSWORD;
 const port = process.env.PORT || 3000;
@@ -10,6 +16,7 @@ app.use(express.json());
 app.use(cors());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { getAuth } = require('firebase-admin/auth');
 const uri = `mongodb+srv://yfaka001:${password}@cluster0.tiftb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -98,15 +105,54 @@ app.get('/review/:id', async (req, res) => {
 app.post('/watchlist', async (req, res) => {
   try {
     await client.connect();
-    const loggedIn = req.body.loggedIn;
-    const email = req.body.email;
-    const game = req.body.game;
-    const myWatchlist = await watchlistCollection.findOne({email: email})
-    if (loggedIn && !myWatchlist?.watchlist?.includes(game)) {
-      const cursor = await watchlistCollection.updateOne({ email: email }, { $push: { watchlist: game } }, { upsert: true });
-      res.send(cursor);
-      console.log('Added to watchlist successfully');
-    }
+    const idToken = req.headers.authorization;
+    getAuth(fbApp) // Firebase Auth
+      .verifyIdToken(idToken)
+      .then(async (decodedToken) => {
+        const email = decodedToken.email;
+        const game = req.body.game;
+        const myWatchlist = await watchlistCollection.findOne({ email: email });
+        if (!myWatchlist?.watchlist?.includes(game)) {
+          const cursor = await watchlistCollection.updateOne({ email: email }, { $push: { watchlist: game } }, { upsert: true });
+          res.send(cursor);
+          console.log('Added to watchlist successfully');
+        }
+      });
+    // const loggedIn = req.body.loggedIn;
+    // const email = req.body.email;
+    // const game = req.body.game;
+    // const myWatchlist = await watchlistCollection.findOne({ email: email });
+    // if (loggedIn && !myWatchlist?.watchlist?.includes(game)) {
+    //   const cursor = await watchlistCollection.updateOne({ email: email }, { $push: { watchlist: game } }, { upsert: true });
+    //   res.send(cursor);
+    //   console.log('Added to watchlist successfully');
+    // }
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
+// Get watchlist data
+app.get('/watchlist', async (req, res) => {
+  try {
+    await client.connect();
+    const idToken = req.headers.authorization;
+    getAuth(fbApp)
+      .verifyIdToken(idToken)
+      .then(async (decodedToken) => {
+        const email = decodedToken.email;
+        const watchlistObj = await watchlistCollection.findOne({ email: email }, { projection: { _id: 0, watchlist: 1 } });
+        const watchlistArray = watchlistObj.watchlist;
+        const watchlist = await Promise.all(
+          watchlistArray.map(async (game) => {
+            const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(game) });
+            return gameInfo;
+          })
+        ).then((watchlist) => {
+          res.send(watchlist);
+          console.log(watchlist);
+        });
+      });
   } catch {
     (error) => res.send(error);
   }
