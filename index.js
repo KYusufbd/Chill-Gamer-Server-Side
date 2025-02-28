@@ -118,15 +118,6 @@ app.post('/watchlist', async (req, res) => {
           console.log('Added to watchlist successfully');
         }
       });
-    // const loggedIn = req.body.loggedIn;
-    // const email = req.body.email;
-    // const game = req.body.game;
-    // const myWatchlist = await watchlistCollection.findOne({ email: email });
-    // if (loggedIn && !myWatchlist?.watchlist?.includes(game)) {
-    //   const cursor = await watchlistCollection.updateOne({ email: email }, { $push: { watchlist: game } }, { upsert: true });
-    //   res.send(cursor);
-    //   console.log('Added to watchlist successfully');
-    // }
   } catch {
     (error) => res.send(error);
   }
@@ -143,15 +134,36 @@ app.get('/watchlist', async (req, res) => {
         const email = decodedToken.email;
         const watchlistObj = await watchlistCollection.findOne({ email: email }, { projection: { _id: 0, watchlist: 1 } });
         const watchlistArray = watchlistObj.watchlist;
-        const watchlist = await Promise.all(
+        await Promise.all(
           watchlistArray.map(async (game) => {
             const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(game) });
             return gameInfo;
           })
         ).then((watchlist) => {
           res.send(watchlist);
-          console.log(watchlist);
         });
+      });
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
+// Remove from watchlist
+app.delete('/watchlist/:gameId', async (req, res) => {
+  try {
+    // Testing purpose only:
+    console.log('Delete request received!');
+
+    await client.connect();
+    const idToken = req.headers.authorization;
+    getAuth(fbApp)
+      .verifyIdToken(idToken)
+      .then(async (decodedToken) => {
+        const email = decodedToken.email;
+        const game = req.params.gameId;
+        const cursor = await watchlistCollection.updateOne({ email: email }, { $pull: { watchlist: game } });
+        res.send(cursor);
+        console.log('Removed from watchlist successfully');
       });
   } catch {
     (error) => res.send(error);
