@@ -112,7 +112,6 @@ app.get('/my-reviews', async (req, res) => {
     const email = decodedToken.email;
     const user = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
     const userId = user._id.toHexString();
-    console.log(userId); // Testing purpose
 
     // Get users reviews:
     const myReviews = await reviewCollection.find({ user: userId }).toArray();
