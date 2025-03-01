@@ -52,6 +52,28 @@ app.get('/', (req, res) => {
   res.send(`Chill Gamer server is running!! on port: ${port}`);
 });
 
+// Add a new review:
+app.post('/review', async (req, res) => {
+  try {
+    await client.connect();
+    const idToken = req.headers.authorization;
+    const decodedToken = await getAuth(fbApp).verifyIdToken(idToken);
+    const email = decodedToken.email;
+    const game = req.body.game;
+    const review = req.body.review;
+    const addedGame = await gameCollection.insertOne(game);
+    const gameId = addedGame.insertedId;
+    const userObj = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
+    const userId = userObj._id;
+    const reviewObj = { user: userId, game: gameId, review: review.description, rating: review.rating };
+    const data = await reviewCollection.insertOne(reviewObj);
+    console.log('Review added successfully');
+    res.send(data);
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
 // Get all reviews:
 app.get('/reviews', async (req, res) => {
   try {
@@ -151,9 +173,6 @@ app.get('/watchlist', async (req, res) => {
 // Remove from watchlist
 app.delete('/watchlist/:gameId', async (req, res) => {
   try {
-    // Testing purpose only:
-    console.log('Delete request received!');
-
     await client.connect();
     const idToken = req.headers.authorization;
     getAuth(fbApp)
