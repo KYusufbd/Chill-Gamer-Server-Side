@@ -83,7 +83,7 @@ app.get('/reviews', async (req, res) => {
     // Get all reviews:
     const allReviews = await reviewCollection.find().toArray();
 
-    // Regviews with details
+    // Reviews with details
     const reviewsWithDetails = await Promise.all(
       allReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
