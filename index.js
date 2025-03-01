@@ -103,6 +103,40 @@ app.get('/reviews', async (req, res) => {
   }
 });
 
+// Get reviews of logged in user:
+app.get('/my-reviews', async (req, res) => {
+  try {
+    await client.connect();
+    const idToken = req.headers.authorization;
+    const decodedToken = await getAuth(fbApp).verifyIdToken(idToken);
+    const email = decodedToken.email;
+    const user = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
+    const userId = user._id.toHexString();
+    console.log(userId); // Testing purpose
+
+    // Get users reviews:
+    const myReviews = await reviewCollection.find({ user: userId }).toArray();
+
+    // Reviews with details
+    const reviewsWithDetails = await Promise.all(
+      myReviews.map(async (review) => {
+        const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
+        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+        return {
+          id: review._id,
+          review: review.review,
+          rating: review.rating,
+          game: gameInfo,
+          user: userInfo,
+        };
+      })
+    );
+    res.send(reviewsWithDetails);
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
 // Get a single detaild review:
 app.get('/review/:id', async (req, res) => {
   try {
