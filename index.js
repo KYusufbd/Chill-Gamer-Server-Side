@@ -62,9 +62,9 @@ app.post('/review', async (req, res) => {
     const game = req.body.game;
     const review = req.body.review;
     const addedGame = await gameCollection.insertOne(game);
-    const gameId = addedGame.insertedId;
+    const gameId = addedGame.insertedId.toHexString();
     const userObj = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
-    const userId = userObj._id;
+    const userId = userObj._id.toHexString();
     const reviewObj = { user: userId, game: gameId, review: review.description, rating: review.rating };
     const data = await reviewCollection.insertOne(reviewObj);
     console.log('Review added successfully');
