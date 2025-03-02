@@ -65,7 +65,7 @@ app.post('/review', async (req, res) => {
     const gameId = addedGame.insertedId.toHexString();
     const userObj = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
     const userId = userObj._id.toHexString();
-    const reviewObj = { user: userId, game: gameId, review: review.description, rating: review.rating };
+    const reviewObj = { user: userId, game: gameId, review: review.review_description, rating: review.rating };
     const data = await reviewCollection.insertOne(reviewObj);
     console.log('Review added successfully');
     res.send(data);
@@ -120,7 +120,7 @@ app.get('/my-reviews', async (req, res) => {
     const reviewsWithDetails = await Promise.all(
       myReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
-        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, genre: 1, description: 1, publishing_year: 1, _id: 0 } });
         return {
           id: review._id,
           review: review.review,
