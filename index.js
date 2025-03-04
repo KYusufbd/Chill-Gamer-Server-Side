@@ -170,10 +170,33 @@ app.put('/review/:id', async (req, res) => {
     const gameId = reviewObj.game;
     const review = req.body.review;
     const game = req.body.game;
-    await gameCollection.updateOne({ _id: ObjectId.createFromHexString(gameId) }, { $set: { title: game.title, image: game.image, genre: game.genre, description: game.description, publishing_year: game.publishing_year } });
-    await reviewCollection.updateOne({ _id: ObjectId.createFromHexString(review_id), user: userId }, { $set: { review: review.review, rating: review.rating } });
-    res.send('Review updated successfully');
+    const updatedGame = await gameCollection.updateOne({ _id: ObjectId.createFromHexString(gameId) }, { $set: { title: game.title, image: game.image, genre: game.genre, description: game.description, publishing_year: game.publishing_year } });
+    const updatedReview = await reviewCollection.updateOne({ _id: ObjectId.createFromHexString(review_id), user: userId }, { $set: { review: review.review, rating: review.rating } });
+    const data = [updatedGame, updatedReview];
+    res.send(data);
     console.log('Review updated successfully');
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
+// Delete a review:
+app.delete('/review/:id', async (req, res) => {
+  try {
+    await client.connect();
+    const idToken = req.headers.authorization;
+    const decodedToken = await getAuth(fbApp).verifyIdToken(idToken);
+    const email = decodedToken.email;
+    const user = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
+    const userId = user._id.toHexString();
+    const review_id = req.params.id;
+    const reviewObj = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) }, {projection: { game: 1 }});
+    const gameId = reviewObj.game;
+    const deletedGame = await gameCollection.deleteOne({ _id: ObjectId.createFromHexString(gameId) });
+    const deletedReview = await reviewCollection.deleteOne({ _id: ObjectId.createFromHexString(review_id), user: userId });
+    const data = [deletedGame, deletedReview];
+    res.send(data);
+    console.log('Review deleted successfully');
   } catch {
     (error) => res.send(error);
   }
