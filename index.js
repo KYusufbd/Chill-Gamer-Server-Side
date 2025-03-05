@@ -80,9 +80,10 @@ app.get('/reviews', async (req, res) => {
     // Connect to MongoDB
     await client.connect();
 
-    // Code for sorting:
+    // Code for sorting and filtering:
     const sort = req.query.sort;
     const order = req.query.order;
+    const genre = req.query.genre;
 
     // Sorting by rating:
     const sortOption = {};
@@ -97,23 +98,38 @@ app.get('/reviews', async (req, res) => {
     const reviewsWithDetails = await Promise.all(
       allReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
-        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, publishing_year: 1, _id: 0 } });
-        return {
-          id: review._id,
-          review: review.review,
-          rating: review.rating,
-          game: gameInfo,
-          user: userInfo,
-        };
+        const identifier = { _id: ObjectId.createFromHexString(review.game) };
+        if (genre) {
+          identifier.genre = genre;
+        }
+        const gameInfo = await gameCollection.findOne(identifier, {
+          projection: {
+            title: 1,
+            image: 1,
+            publishing_year: 1,
+            _id: 0,
+          },
+        });
+        if (gameInfo) {
+          return {
+            id: review._id,
+            review: review.review,
+            rating: review.rating,
+            game: gameInfo,
+            user: userInfo,
+          };
+        }
       })
     );
 
+    const finalResponse = reviewsWithDetails.filter((review) => review !== undefined);
+
     // Sorting by publishing year:
     if (sort === 'year') {
-      order === 'des' ? reviewsWithDetails.sort((a, b) => b.game.publishing_year - a.game.publishing_year) : reviewsWithDetails.sort((a, b) => a.game.publishing_year - b.game.publishing_year);
+      order === 'des' ? finalResponse.sort((a, b) => b.game.publishing_year - a.game.publishing_year) : finalResponse.sort((a, b) => a.game.publishing_year - b.game.publishing_year);
     }
 
-    res.send(reviewsWithDetails);
+    res.send(finalResponse);
   } catch {
     (error) => res.send(error);
   }
