@@ -80,14 +80,24 @@ app.get('/reviews', async (req, res) => {
     // Connect to MongoDB
     await client.connect();
 
+    // Code for sorting:
+    const sort = req.query.sort;
+    const order = req.query.order;
+
+    // Sorting by rating:
+    const sortOption = {};
+    if (sort === 'rating') {
+      sortOption.rating = order === 'des' ? -1 : 1;
+    }
+
     // Find all reviews:
-    const allReviews = await reviewCollection.find().toArray();
+    const allReviews = sort === 'rating' ? await reviewCollection.find().sort(sortOption).toArray() : await reviewCollection.find().toArray();
 
     // Reviews with details
     const reviewsWithDetails = await Promise.all(
       allReviews.map(async (review) => {
         const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
-        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, publishing_year: 1, _id: 0 } });
         return {
           id: review._id,
           review: review.review,
@@ -97,6 +107,12 @@ app.get('/reviews', async (req, res) => {
         };
       })
     );
+
+    // Sorting by publishing year:
+    if (sort === 'year') {
+      order === 'des' ? reviewsWithDetails.sort((a, b) => b.game.publishing_year - a.game.publishing_year) : reviewsWithDetails.sort((a, b) => a.game.publishing_year - b.game.publishing_year);
+    }
+
     res.send(reviewsWithDetails);
   } catch {
     (error) => res.send(error);
@@ -110,7 +126,7 @@ app.get('/top-rated', async (req, res) => {
     await client.connect();
 
     // Find top rated reviews:
-    const allReviews = await reviewCollection.find({rating: 5}).toArray();
+    const allReviews = await reviewCollection.find({ rating: 5 }).toArray();
 
     // Reviews with details
     const reviewsWithDetails = await Promise.all(
@@ -199,7 +215,10 @@ app.put('/review/:id', async (req, res) => {
     const gameId = reviewObj.game;
     const review = req.body.review;
     const game = req.body.game;
-    const updatedGame = await gameCollection.updateOne({ _id: ObjectId.createFromHexString(gameId) }, { $set: { title: game.title, image: game.image, genre: game.genre, description: game.description, publishing_year: game.publishing_year } });
+    const updatedGame = await gameCollection.updateOne(
+      { _id: ObjectId.createFromHexString(gameId) },
+      { $set: { title: game.title, image: game.image, genre: game.genre, description: game.description, publishing_year: game.publishing_year } }
+    );
     const updatedReview = await reviewCollection.updateOne({ _id: ObjectId.createFromHexString(review_id), user: userId }, { $set: { review: review.review, rating: review.rating } });
     const data = [updatedGame, updatedReview];
     res.send(data);
@@ -219,7 +238,7 @@ app.delete('/review/:id', async (req, res) => {
     const user = await userCollection.findOne({ email: email }, { projection: { _id: 1 } });
     const userId = user._id.toHexString();
     const review_id = req.params.id;
-    const reviewObj = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) }, {projection: { game: 1 }});
+    const reviewObj = await reviewCollection.findOne({ _id: ObjectId.createFromHexString(review_id) }, { projection: { game: 1 } });
     const gameId = reviewObj.game;
     const deletedGame = await gameCollection.deleteOne({ _id: ObjectId.createFromHexString(gameId) });
     const deletedReview = await reviewCollection.deleteOne({ _id: ObjectId.createFromHexString(review_id), user: userId });
