@@ -80,8 +80,37 @@ app.get('/reviews', async (req, res) => {
     // Connect to MongoDB
     await client.connect();
 
-    // Get all reviews:
+    // Find all reviews:
     const allReviews = await reviewCollection.find().toArray();
+
+    // Reviews with details
+    const reviewsWithDetails = await Promise.all(
+      allReviews.map(async (review) => {
+        const userInfo = await userCollection.findOne({ _id: ObjectId.createFromHexString(review.user) }, { projection: { _id: 0, name: 1 } });
+        const gameInfo = await gameCollection.findOne({ _id: ObjectId.createFromHexString(review.game) }, { projection: { title: 1, image: 1, _id: 0 } });
+        return {
+          id: review._id,
+          review: review.review,
+          rating: review.rating,
+          game: gameInfo,
+          user: userInfo,
+        };
+      })
+    );
+    res.send(reviewsWithDetails);
+  } catch {
+    (error) => res.send(error);
+  }
+});
+
+// Get top rated reviews:
+app.get('/top-rated', async (req, res) => {
+  try {
+    // Connect to MongoDB
+    await client.connect();
+
+    // Find top rated reviews:
+    const allReviews = await reviewCollection.find({rating: 5}).toArray();
 
     // Reviews with details
     const reviewsWithDetails = await Promise.all(
